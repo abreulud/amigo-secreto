@@ -195,7 +195,15 @@ $("#p-add").onclick=()=>{
   if(!nome)return toast("Informe seu nome para entrar no grupo.");
   return action("entrar",{nome});
 };
-$("#s-go").onclick=()=>action("sortear");
+$("#s-go").onclick=async()=>{
+  if(busy||!S.admin||S.pairs)return;
+  const button=$("#s-go");
+  button.disabled=true;button.textContent="Sorteando…";
+  try{
+    if(await action("sortear")&&S.pairs)$("#celebration").showModal();
+  }finally{button.textContent="Sortear agora";paint();}
+};
+$("#celebration").onclose=()=>$("#s-redo").focus();
 $("#s-redo").onclick=()=>{if(confirm("Apagar os pares e reabrir o grupo?"))action("reabrir");};
 function addWishRow(focus=false){
   const row=document.createElement("div");
@@ -251,19 +259,27 @@ $("#send").onclick=()=>authTask(async()=>{
 $("#verify").onclick=()=>authTask(async()=>{
   if(!/^\d+$/.test($("#code").value.trim())){toast("Digite o código recebido por e-mail.");$("#code").focus();return {}; }
   const result=await db.auth.verifyOtp({email:$("#email").value.trim(),token:$("#code").value.trim(),type:"email"});
-  if(!result.error)location.reload();
+  if(!result.error)$("#code").value="";
   return result;
 });
 $("#logout").onclick=()=>authTask(async()=>{
-  const result=await db.auth.signOut({scope:"local"});if(!result.error)location.reload();return result;
+  return await db.auth.signOut({scope:"local"});
 });
-async function start(){
-  paint();
-  try{
-    if(!window.NATAL_URL||!window.NATAL_KEY)throw Error("Preencha docs/config.js com a URL e a chave pública do Supabase.");
-    db=supabase.createClient(window.NATAL_URL,window.NATAL_KEY);
-    const {data,error}=await db.auth.getSession();if(error)throw error;
-    account=data.session?.user;paint();
+function sessionStorageAdapter(){
+  for(const name of ["localStorage","sessionStorage"]){
+    try{
+      const storage=window[name];
+      storage.setItem("natal-storage-test","1");storage.removeItem("natal-storage-test");
+      return storage;
+    }catch{}
+  }
+  throw Error("Permita os dados deste site ou abra o convite diretamente no navegador para manter o login.");
+}
+async function enterSession(session){
+  const next=session?.user??null;
+  if(account&&account.id!==next?.id){location.reload();return;}
+  if(account)return;
+  account=next;paint();
     if(account){
       if(eventId||invitation){
         if(await action("ler")){
@@ -276,8 +292,17 @@ async function start(){
         if(params.get("criar")==="1")showEditor(false);
       }
     }
-    db.auth.onAuthStateChange((event,session)=>{
-      if((session?.user?.id||null)!==(account?.id||null))location.reload();
+
+}
+async function start(){
+  try{
+    if(!window.NATAL_URL||!window.NATAL_KEY)throw Error("Preencha docs/config.js com a URL e a chave pública do Supabase.");
+    db=supabase.createClient(window.NATAL_URL,window.NATAL_KEY,{
+      auth:{persistSession:true,autoRefreshToken:true,storage:sessionStorageAdapter()}
+    });
+    db.auth.onAuthStateChange((_event,session)=>{
+      // As consultas autenticadas precisam aguardar a liberação do lock do cliente.
+      setTimeout(()=>enterSession(session).catch(e=>message(e.message)),0);
     });
   }catch(e){message(e.message);}
 }

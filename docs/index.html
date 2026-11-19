@@ -129,6 +129,15 @@ section h2{font-size:1.5rem}
  input,select,textarea{font-size:16px}
  .checks input{width:20px;height:20px;min-height:0;flex:none}
 }
+#celebration{color:var(--ink);background:var(--card);border:1px solid var(--gold);border-radius:20px;width:min(90vw,380px);padding:28px;text-align:center;overflow:hidden}
+#celebration::backdrop{background:rgba(6,27,18,.78)}
+.gift-reveal{font-size:4rem}
+@media(prefers-reduced-motion:no-preference){
+ #celebration[open] .gift-reveal{animation:unwrap .85s ease-out}
+ #celebration[open] h2{animation:appear .4s .4s backwards}
+ @keyframes unwrap{0%{transform:scale(.6)}25%{transform:rotate(-14deg)}48%{transform:rotate(11deg)}72%{transform:translateY(-10px) scale(1.14)}100%{transform:none}}
+ @keyframes appear{from{opacity:0;transform:translateY(6px)}}
+}
 </style>
 </head>
 <body>
@@ -138,7 +147,7 @@ section h2{font-size:1.5rem}
     <p id="intro">Cadastrem o evento, sorteiem e deixem a lista de presentes sempre atualizada.</p>
     <div class="count" id="count" hidden><b id="days">0</b><span id="dayslbl">dias para a troca de presentes</span></div>
   </div>
-<div class="wrap account-wrap"><div class="status" id="account"><strong id="session">Acesso por e-mail</strong><div id="auth"><label for="email">Seu e-mail</label><input id="email" type="email" autocomplete="email"><button class="btn" id="send">Enviar código</button><label for="code">Código recebido</label><input id="code" inputmode="numeric" autocomplete="one-time-code"><button class="btn alt" id="verify">Confirmar código</button></div><button class="btn alt" id="logout" hidden>Sair da conta</button><p role="status" id="message"></p></div></div>
+<div class="wrap account-wrap"><div class="status" id="account"><strong id="session">Restaurando sua sessão…</strong><div id="auth" hidden><label for="email">Seu e-mail</label><input id="email" type="email" autocomplete="email"><button class="btn" id="send">Enviar código</button><label for="code">Código recebido</label><input id="code" inputmode="numeric" autocomplete="one-time-code"><button class="btn alt" id="verify">Confirmar código</button></div><button class="btn alt" id="logout" hidden>Sair da conta</button><p role="status" id="message"></p></div></div>
 </header>
 
 <nav hidden role="tablist" aria-label="Etapas">
@@ -226,7 +235,12 @@ section h2{font-size:1.5rem}
   </section>
 </main>
 
-<div class="over" id="over" aria-live="polite"><div><div class="nm" id="nm">🎁</div><p id="ov-msg">Embaralhando os nomes…</p><button class="btn" id="ov-ok" hidden>Fechar</button></div></div>
+<dialog id="celebration" aria-labelledby="celebration-title">
+  <div class="gift-reveal" aria-hidden="true">🎁</div>
+  <h2 id="celebration-title">Sorteio realizado!</h2>
+  <p>Cada participante já pode abrir a etiqueta em Minha área.</p>
+  <form method="dialog"><button class="btn" autofocus>Concluir</button></form>
+</dialog>
 <div class="toast" id="toast" role="status"></div>
 
 <script src="./config.js"></script>
