@@ -129,24 +129,10 @@ section h2{font-size:1.5rem}
  input,select,textarea{font-size:16px}
  .checks input{width:20px;height:20px;min-height:0;flex:none}
 }
-#celebration{color:var(--ink);background:var(--card);border:1px solid var(--gold);border-radius:20px;width:min(90vw,380px);padding:28px;text-align:center;overflow:hidden}
-#celebration::backdrop{background:rgba(6,27,18,.78)}
-.gift-reveal{position:relative;margin:0 auto;height:116px;width:100%}
-.gift-box,.gift-lid{position:absolute;left:50%;background:linear-gradient(90deg,#b82635 40%,#ffd36b 40% 60%,#df3949 60%);border-radius:4px}
-.gift-box{width:56px;height:42px;margin-left:-28px;bottom:8px;box-shadow:inset 0 4px 0 #891f30}
-.gift-lid{width:64px;height:14px;margin-left:-32px;bottom:50px;transform:translate(-19px,-24px) rotate(-24deg)}
-.gift-lid::before,.gift-lid::after{content:"";position:absolute;bottom:100%;width:16px;height:10px;border:4px solid #ffd36b;border-radius:60% 60% 0 60%;left:9px;transform:rotate(15deg)}
-.gift-lid::after{left:30px;transform:scaleX(-1) rotate(15deg)}
-.gift-spark{position:absolute;left:50%;bottom:50px;width:6px;height:10px;background:var(--color);transform:translate(var(--x),var(--y)) rotate(var(--spin));border-radius:2px}
-#celebration-title{overflow-wrap:anywhere}
-@media(prefers-reduced-motion:no-preference){
- #celebration[open] .gift-lid{animation:lift-lid .8s ease-out both}
- #celebration[open] .gift-spark{animation:burst .85s .28s ease-out backwards}
- #celebration[open] .reveal-result{animation:show-result .4s .7s backwards}
- @keyframes lift-lid{0%,28%{transform:none}45%{transform:translate(1px,-3px) rotate(6deg)}75%{transform:translate(-14px,-33px) rotate(-22deg)}}
- @keyframes burst{from{opacity:0;transform:translateY(0) scale(.2)}30%{opacity:1}}
- @keyframes show-result{from{opacity:0;transform:translateY(6px)}}
-}
+.scene{position:relative}.tag{transition:none}
+.confetti-layer{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.confetti-layer i{position:absolute;top:64%;left:50%;width:5px;height:8px;animation:reveal-confetti .95s ease-out both}
+@keyframes reveal-confetti{0%{transform:scale(.3);opacity:0}18%{opacity:1}65%{transform:translate(var(--x),var(--y)) rotate(155deg)}100%{transform:translate(var(--x),calc(var(--y) + 30px)) rotate(230deg);opacity:0}}
 </style>
 </head>
 <body>
@@ -244,11 +230,7 @@ section h2{font-size:1.5rem}
   </section>
 </main>
 
-<dialog id="celebration" aria-labelledby="celebration-title">
-  <div class="gift-reveal" aria-hidden="true"><span class="gift-box"></span><span class="gift-lid"></span></div>
-  <div class="reveal-result"><p id="reveal-label"></p><h2 id="celebration-title"></h2></div>
-  <form method="dialog"><button class="btn" autofocus>Concluir</button></form>
-</dialog>
+
 <div class="toast" id="toast" role="status"></div>
 
 <script src="./config.js"></script>

@@ -44,7 +44,7 @@ function renderMe(){
     d.innerHTML=`<p class="sub" style="margin-bottom:0">Toque na etiqueta para descobrir quem você tirou.</p>
     <div class="scene"><div class="tag" id="tag" tabindex="0" role="button" aria-label="Revelar amigo secreto"><div class="face front">Toque para abrir</div><div class="face back"><div><small>Você tirou</small>${esc(r.name)}</div></div></div></div>
     <div id="r-box" hidden><h3 style="font-size:1.2rem">Lista de ${esc(r.name)}</h3><ul class="list">${r.wishes.length?r.wishes.map(w=>wishHTML(w,false)).join(""):'<li class="empty" style="display:block">Essa pessoa ainda não adicionou nada. Volte depois.</li>'}</ul></div>`;
-    const t=$("#tag"),flip=()=>{t.classList.toggle("flip");$("#r-box").hidden=!t.classList.contains("flip");if(!$("#r-box").hidden)revealGift(t);};
+    const t=$("#tag"),flip=()=>{t.classList.toggle("flip");$("#r-box").hidden=!t.classList.contains("flip");if(!$("#r-box").hidden)confettiOnReveal(t);else t.parentElement.querySelector(".confetti-layer")?.remove();};
     t.onclick=flip;t.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();flip();}};
   }
   $("#w-list").innerHTML=p.wishes.length?p.wishes.map(w=>wishHTML(w,true)).join(""):'<li class="empty" style="display:block">Sua lista está vazia. Adicione o que você gostaria de ganhar.</li>';
@@ -195,34 +195,31 @@ $("#p-add").onclick=()=>{
   if(!nome)return toast("Informe seu nome para entrar no grupo.");
   return action("entrar",{nome});
 };
-const gift=$("#celebration .gift-reveal");
-for(let i=0;i<24;i++){
-  const piece=document.createElement("i"),angle=Math.PI*(i+.5)/24;
-  const radius=i%2?86:65;
-  piece.className="gift-spark";
-  piece.style.setProperty("--x",Math.cos(angle)*radius+"px");
-  piece.style.setProperty("--y",-Math.sin(angle)*radius*.7+"px");
-  piece.style.setProperty("--spin",i*37+"deg");
-  piece.style.setProperty("--color",["#ffcc59","#ed5866","#58ba97","#9e9beb"][i%4]);
-  gift.prepend(piece);
-}
-let revealTrigger;
-function revealGift(trigger){
-  const recipient=me&&byId(S.alvo);
-  $("#reveal-label").textContent=recipient?"Você tirou":"Os pares estão prontos";
-  $("#celebration-title").textContent=recipient?recipient.name:"Cada participante pode abrir sua etiqueta em Minha área.";
-  revealTrigger=trigger;
-  $("#celebration").showModal();
+function confettiOnReveal(tag){
+  if(window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+  const scene=tag.parentElement;
+  scene.querySelector(".confetti-layer")?.remove();
+  const layer=document.createElement("div");
+  layer.className="confetti-layer";layer.setAttribute("aria-hidden","true");
+  for(let i=0;i<26;i++){
+    const piece=document.createElement("i");
+    const angle=(i+.5)*Math.PI/26;
+    piece.style.setProperty("--x",Math.cos(angle)*(80+Math.random()*60)+"px");
+    piece.style.setProperty("--y",-Math.sin(angle)*(45+Math.random()*50)+"px");
+    piece.style.background=["#ffd05c","#ef6677","#52bd90","#8ca1ff"][i%4];
+    layer.append(piece);
+  }
+  scene.append(layer);setTimeout(()=>layer.remove(),1000);
 }
 $("#s-go").onclick=async()=>{
   if(busy||!S.admin||S.pairs)return;
   const button=$("#s-go");
   button.disabled=true;button.textContent="Sorteando…";
   try{
-    if(await action("sortear")&&S.pairs)revealGift($("#s-redo"));
+    await action("sortear");
   }finally{button.textContent="Sortear agora";paint();}
 };
-$("#celebration").onclose=()=>revealTrigger?.focus();
+
 $("#s-redo").onclick=()=>{if(confirm("Apagar os pares e reabrir o grupo?"))action("reabrir");};
 function addWishRow(focus=false){
   const row=document.createElement("div");
