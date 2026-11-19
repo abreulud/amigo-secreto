@@ -9,7 +9,7 @@ let tt; function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("o
 // topo: título e contagem regressiva
 function renderHero(){
   const e=S.event; $("#title").textContent=e.name||"Amigo Secreto de Natal";
-  const parts=[]; if(e.count)parts.push(e.count+" participantes"); if(e.budget)parts.push("Presentes de até "+brl(e.budget)); if(e.note)parts.push(e.note);
+  const parts=[]; if(e.count)parts.push(e.count+" participantes"); if(e.budget!=null&&e.budget!=="")parts.push("Presentes de até "+brl(e.budget)); if(e.note)parts.push(e.note);
   $("#intro").textContent=parts.length?parts.join(". ")+".":"Cadastrem o evento, sorteiem e deixem a lista de presentes sempre atualizada.";
   const c=$("#count");
   if(e.date){const d=Math.ceil((new Date(e.date+"T00:00:00")-new Date().setHours(0,0,0,0))/864e5);
@@ -61,11 +61,13 @@ const invitation=new URLSearchParams(location.search).get("convite");
 const message=t=>$("#message").textContent=t;
 let editing=false;
 let directoryLoaded=false;
-function groupUrl(id, personal=false){
+let editorChanged=false;
+$("#editor").oninput=()=>{editorChanged=true;};
+function groupUrl(id){
   const url=new URL(location.href);
   url.search="";url.hash="";
   if(id)url.searchParams.set("evento",id);
-  if(personal)url.searchParams.set("area","eu");
+
   return url.href;
 }
 async function loadDirectory(){
@@ -76,7 +78,7 @@ async function loadDirectory(){
   for(const group of data){
     const link=document.createElement("a");
     link.textContent=group.nome||"Evento sem nome";
-    link.href=groupUrl(group.id,group.participa);
+    link.href=groupUrl(group.id);
     const item=document.createElement("li");item.append(link);
     (group.participa?groups:owned).append(item);
   }
@@ -86,7 +88,11 @@ async function loadDirectory(){
 }
 function showEditor(editExisting){
   editing=true;
+  editorChanged=false;
   fillEvent();
+  $("#e-qtd").min=Math.max(3,S.people.length);
+  $("#e-qtd").disabled=!!S.pairs;
+  $("#capacity-hint").textContent=S.pairs?"Para alterar as vagas, reabra o grupo na aba Sorteio. Isso apaga os pares atuais.":`Escolha de ${$("#e-qtd").min} a 50 vagas. Já há ${S.people.length} inscrição(ões).`;
   go("evento");
   $("#directory").hidden=true;$("#editor").hidden=false;
   $("#editor-title").textContent=editExisting?"Editar evento":"Criar evento";
@@ -94,10 +100,21 @@ function showEditor(editExisting){
   $("#e-nome").focus();
 }
 $("#novo").onclick=()=>showEditor(false);
-$("#edit-event").onclick=()=>showEditor(true);
+$("#copy-invite").onclick=async()=>{
+  const input=$("#invite");
+  if(!S.admin||!input.value)return;
+  try{
+    await navigator.clipboard.writeText(input.value);
+    toast("Link de convite copiado!");
+  }catch{
+    input.focus();input.select();
+    toast("Link selecionado. Use a opção Copiar do seu dispositivo.");
+  }
+};
+
 $("#cancel-editor").onclick=()=>{
   editing=false;$("#editor").hidden=true;
-  if(S.id)go("pessoas");else $("#directory").hidden=false;
+  if(S.id)location.assign(groupUrl(null));else $("#directory").hidden=false;
 };
 function paint(){
   renderHero();renderPeople();renderDraw();
@@ -135,33 +152,76 @@ function go(id){
 }
 $$("nav button").forEach(b=>b.onclick=async()=>{
   const tab=b.dataset.t;
+  if(busy)return;
+  if(editing&&editorChanged&&!confirm("Sair sem salvar as alterações do evento?"))return;
   if(tab==="evento"&&(eventId||invitation)){location.assign(groupUrl(null));return;}
   editing=false;paint();go(tab);if(S.id)await action("ler");
 });
-$("#e-save").onclick=async()=>{
+$("#editor").onsubmit=async event=>{
+  event.preventDefault();
+  if(!$("#editor").reportValidity())return;
   if(!$("#e-data").value||!$("#e-nome").value.trim()||!$("#e-qtd").value)return toast("Informe nome, data e vagas.");
   if(await action(S.id?"evento":"criar",{novo:draftId,nome:$("#e-nome").value,data:$("#e-data").value,vagas:$("#e-qtd").value,valor:$("#e-orc").value,obs:$("#e-obs").value})){editing=false;paint();if(S.id)go("pessoas");}
 };
-$("#p-add").onclick=()=>action("entrar",{nome:$("#p-nome").value});
+$("#p-add").onclick=()=>{
+  const nome=$("#p-nome").value.trim();
+  if(!nome)return toast("Informe seu nome para entrar no grupo.");
+  return action("entrar",{nome});
+};
 $("#s-go").onclick=()=>action("sortear");
 $("#s-redo").onclick=()=>{if(confirm("Apagar os pares e reabrir o grupo?"))action("reabrir");};
-$("#w-add").onclick=async()=>{
-  let link=$("#w-link").value.trim();
-  if(link&&!/^https?:\/\//i.test(link))link="https://"+link;
-  if(await action("adicionar",{nome:$("#w-txt").value,link})){
-    $("#w-txt").value="";$("#w-link").value="";
+function addWishRow(focus=false){
+  const row=document.createElement("div");
+  row.className="row";
+  row.dataset.id=crypto.randomUUID();
+  row.innerHTML='<label>Presente<input class="wish-name" maxlength="70" placeholder="Fone de ouvido"></label><label>Link (opcional)<input class="wish-link" maxlength="2048" placeholder="loja.com/produto"></label>';
+  $("#wish-rows").append(row);
+  if(focus)row.querySelector("input").focus();
+}
+addWishRow();
+$("#wish-more").onclick=()=>addWishRow(true);
+$("#wish-form").onsubmit=async event=>{
+  event.preventDefault();
+  if(!me||busy||$("#wish-fields").disabled)return;
+  const itens=[];
+  for(const row of document.querySelectorAll("#wish-rows .row")){
+    const nameInput=row.querySelector(".wish-name"),linkInput=row.querySelector(".wish-link");
+    const nome=nameInput.value.trim();
+    let link=linkInput.value.trim();
+    if(!nome&&!link)continue;
+    if(!nome){nameInput.focus();return toast("Informe o presente desta linha.");}
+    if(link){
+      try{
+        const url=new URL(/^[a-z][a-z0-9+.-]*:/i.test(link)?link:"https://"+link);
+        if(!["http:","https:"].includes(url.protocol)||!url.hostname.includes(".")||url.href.length>2048)throw Error();
+        link=url.href;
+      }catch{linkInput.focus();return toast("Confira o endereço do presente.");}
+    }
+    itens.push({id:row.dataset.id,nome,link});
   }
+  if(!itens.length)return toast("Informe pelo menos um presente.");
+  $("#wish-fields").disabled=true;
+  busy=true;
+  try{
+    const {error}=await db.rpc("salvar_presentes",{evento:S.id,itens});
+    if(error)throw error;
+    $("#wish-rows").replaceChildren();addWishRow();
+  }catch(e){message(e.message);toast("Falha ao salvar. Seus presentes continuam no formulário.");return;}
+  finally{busy=false;$("#wish-fields").disabled=false;}
+  if(await action("ler"))toast(itens.length===1?"Presente salvo!":"Presentes salvos!");
 };
 $("#n-save").onclick=()=>action("avisos",{data:$("#n-date").checked,lista:$("#n-list").checked});
 async function authTask(fn){
   try{const {error}=await fn();if(error)throw error;}catch(e){message(e.message);}
 }
 $("#send").onclick=()=>authTask(async()=>{
+  if(!$("#email").reportValidity()||!$("#email").value.trim()){ $("#email").focus();return {}; }
   const result=await db.auth.signInWithOtp({email:$("#email").value.trim()});
   if(!result.error)message("Confira o código no seu e-mail e digite abaixo.");
   return result;
 });
 $("#verify").onclick=()=>authTask(async()=>{
+  if(!/^\d+$/.test($("#code").value.trim())){toast("Digite o código recebido por e-mail.");$("#code").focus();return {}; }
   const result=await db.auth.verifyOtp({email:$("#email").value.trim(),token:$("#code").value.trim(),type:"email"});
   if(!result.error)location.reload();
   return result;
@@ -178,7 +238,10 @@ async function start(){
     account=data.session?.user;paint();
     if(account){
       if(eventId||invitation){
-        if(await action("ler"))go(me&&params.get("area")==="eu"?"eu":"pessoas");
+        if(await action("ler")){
+          if(S.admin&&eventId)showEditor(true);
+          else go(me&&!invitation?"eu":"pessoas");
+        }
         else {$("#directory").hidden=true;const back=document.createElement("a");back.href=groupUrl(null);back.textContent="Voltar aos meus eventos";$("#message").append(" ",back);}
       }else{
         await loadDirectory();

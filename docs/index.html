@@ -113,6 +113,7 @@ section h2{font-size:1.5rem}
 #auth label{flex-basis:100%}#auth input{flex:1;min-width:12ch}#auth .btn,#logout{margin:0}
 #logout{margin-left:12px}#message:empty{display:none}#managed{margin-top:22px}
 .list a{color:var(--ink);font-weight:600;overflow-wrap:anywhere}
+.invite-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.invite-row input{flex:1 1 180px}.invite-row .btn{margin:0;width:auto}
 </style>
 </head>
 <body>
@@ -141,27 +142,27 @@ section h2{font-size:1.5rem}
       <div id="managed" hidden><h3>Eventos que organizo sem participar</h3><ul class="list" id="owned"></ul></div>
       <button class="btn" id="novo">Criar evento</button>
     </div>
-    <div id="editor" hidden><h2 id="editor-title">Criar evento</h2>
+    <form id="editor" hidden><h2 id="editor-title">Criar evento</h2>
     <p class="sub">Defina nome, data e o valor combinado para os presentes.</p>
     <label for="e-nome">Nome do evento</label>
-    <input id="e-nome" placeholder="Natal da turma 2026" maxlength="60">
+    <input id="e-nome" required placeholder="Natal da turma 2026" maxlength="60">
     <div class="row">
-      <div><label for="e-data">Data da troca</label><input id="e-data" type="date"></div>
-      <div><label for="e-orc">Orçamento por presente (R$)</label><input id="e-orc" type="number" min="0" step="5" placeholder="80"></div>
+      <div><label for="e-data">Data da troca</label><input id="e-data" required type="date"></div>
+      <div><label for="e-orc">Orçamento por presente (R$)</label><input id="e-orc" type="number" min="0" max="999999" step="0.01" placeholder="80"></div>
     </div>
     <label for="e-qtd">Quantas pessoas vão participar?</label>
-    <input id="e-qtd" type="number" min="3" max="50" step="1" placeholder="8">
-    <p class="hint">O sorteio só libera quando todos estiverem cadastrados.</p>
+    <input id="e-qtd" required type="number" min="3" max="50" step="1" placeholder="8">
+    <p class="hint" id="capacity-hint">O sorteio só libera quando todos estiverem cadastrados.</p>
     <label for="e-obs">Local ou observações (opcional)</label>
     <input id="e-obs" placeholder="Casa da Ana, a partir das 19h" maxlength="100">
     <button class="btn" id="e-save">Criar evento</button>
-    <button class="btn alt" id="cancel-editor">Cancelar</button></div>
+    <button class="btn alt" id="cancel-editor" type="button">Cancelar</button></form>
   </section>
 
   <section id="pessoas">
     <h2>Participantes</h2>
-    <div id="manager" hidden><label for="invite">Link para convidar o grupo</label><input id="invite" readonly>
-    <button id="edit-event" class="btn alt">Editar evento</button></div>
+    <div id="manager" hidden><label for="invite">Link para convidar o grupo</label><div class="invite-row"><input id="invite" readonly><button class="btn alt" id="copy-invite" type="button">Copiar link</button></div>
+    </div>
     <div id="registration">
     <p class="sub">Abra o convite e cadastre seu próprio nome.</p><label for="p-nome">Seu nome no grupo</label><input id="p-nome" maxlength="30"><button class="btn" id="p-add">Entrar no grupo</button></div>
     <div class="prog"><div class="bar" id="p-bar"></div></div>
@@ -184,11 +185,13 @@ section h2{font-size:1.5rem}
       <hr>
       <h3>Minha lista de presentes</h3>
       <p class="sub">Pode mudar quando quiser. Só quem tirou você consegue ver.</p>
-      <div class="row">
-        <div><label for="w-txt">Presente</label><input id="w-txt" maxlength="70" placeholder="Fone de ouvido"></div>
-        <div><label for="w-link">Link (opcional)</label><input id="w-link" placeholder="loja.com/produto"></div>
-      </div>
-      <button class="btn" id="w-add">Adicionar à lista</button>
+      <form id="wish-form">
+        <fieldset id="wish-fields" style="border:0;margin:0;padding:0">
+          <div id="wish-rows"></div>
+          <button class="btn alt" type="button" id="wish-more">Adicionar outra linha</button>
+          <button class="btn" type="submit">Salvar presentes</button>
+        </fieldset>
+      </form>
       <ul class="list" id="w-list"></ul>
       <hr>
       <h3>Avisos por e-mail</h3>
