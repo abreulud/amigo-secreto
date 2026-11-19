@@ -24,7 +24,7 @@ begin
 end $$;
 create trigger limpar_par after delete on natal.par for each row execute function natal.limpar_par();
 
-create function natal.enviar() returns void language plpgsql set search_path='' as $$
+create or replace function natal.enviar() returns void language plpgsql set search_path='' as $
 declare
  hoje date:=(now() at time zone 'America/Sao_Paulo')::date;
  api text; remetente text; item record; req bigint;
@@ -34,13 +34,13 @@ begin
  select decrypted_secret into remetente from vault.decrypted_secrets where name='natal_remetente';
  if api is null or remetente is null then return; end if;
  insert into natal.aviso(chave,destino,dia)
- select p.id::text||'/'||e.data::text,p.id,e.data from natal.pessoa p cross join natal.evento e
+ select p.id::text||'/'||e.data::text,p.id,e.data from natal.pessoa p join natal.evento e on e.id=p.evento_id
  where p.avisar_data and e.data=hoje+1 on conflict do nothing;
  update natal.aviso a set estado='enviado',fim=now() from net._http_response r
  where a.estado='pendente' and a.pedido=r.id and r.status_code between 200 and 299;
  update natal.aviso set estado='expirado' where estado='pendente' and inicio<now()-interval '23 hours';
  for item in select a.*,u.email from natal.aviso a join natal.pessoa m on m.id=a.destino
- join auth.users u on u.id=m.id cross join natal.evento e
+ join auth.users u on u.id=m.conta join natal.evento e on e.id=m.evento_id
  where a.estado='pendente' and (a.tentativa is null or a.tentativa<now()-interval '10 minutes')
  and ((a.origem is null and m.avisar_data and e.data=a.dia and a.dia=hoje+1)
  or (a.origem is not null and m.avisar_lista and exists(select from natal.par p where p.de=m.id and p.para=a.origem)))
@@ -53,7 +53,7 @@ begin
  into req;
  update natal.aviso set pedido=req,tentativa=now(),inicio=coalesce(inicio,now()) where chave=item.chave;
  end loop;
-end $$;
+end $;
 revoke all on all functions in schema natal from public,anon,authenticated;
 select cron.schedule('natal-avisos','* * * * *','select natal.enviar()');
 commit;

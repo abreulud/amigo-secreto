@@ -54,8 +54,21 @@ function renderMe(){
 const blank=()=>({event:{name:"",date:"",budget:"",note:""},people:[],pairs:false});
 let S=blank(), me=null, db, account=null, busy=false;
 const byId=id=>S.people.find(p=>p.id===id);
+const params=new URLSearchParams(location.search);
+const eventId=params.get("evento");
+const draftId=crypto.randomUUID();
 const invitation=new URLSearchParams(location.search).get("convite");
 const message=t=>$("#message").textContent=t;
+const picker=document.createElement("div");
+picker.innerHTML='<label for="grupos">Meus eventos</label><select id="grupos"></select><button id="novo" class="btn alt">Criar outro evento</button>';
+$("#account").append(picker);
+function openEvent(id){
+  const url=new URL(location.href);url.search="";url.hash="";
+  if(id)url.searchParams.set("evento",id);
+  location.assign(url.href);
+}
+$("#grupos").onchange=e=>openEvent(e.target.value);
+$("#novo").onclick=()=>openEvent(null);
 function paint(){
   fillEvent();renderHero();renderPeople();renderDraw();
   $("#login").hidden=!!me;$("#area").hidden=!me;
@@ -63,7 +76,15 @@ function paint(){
   $("#auth").hidden=!!account;$("#logout").hidden=!account;
   $("#session").textContent=account?account.email:"Acesso por e-mail";
   $("#m-out").hidden=true;
-  for(const el of $$("#evento input:not(#invite),#e-save"))el.disabled=!S.admin;
+  const creating=!!account&&!invitation&&!eventId;
+  picker.hidden=!account;
+  const select=$("#grupos");
+  select.replaceChildren(new Option(creating?"Novo evento":"Escolha um evento",""));
+  for(const group of S.grupos||[]) select.add(new Option(group.nome||"Evento sem nome",group.id));
+  if(S.id)select.value=S.id;
+  $("#novo").hidden=creating;
+  $("#e-save").textContent=creating?"Criar evento":"Salvar evento";
+  for(const el of $$("#evento input:not(#invite),#e-save"))el.disabled=!(creating||S.admin);
   $("#inviteBox").hidden=!S.admin||!S.event.count;
   if(S.admin){const url=new URL(location.href);url.search="";url.hash="";url.searchParams.set("convite",S.convite);$("#invite").value=url.href;}
   $("#p-add").disabled ||= !!me||!account;
@@ -73,10 +94,11 @@ async function action(acao,dados={}){
   if(!account||busy)return false;
   busy=true;
   try{
-    const {data,error}=await db.rpc("natal",{acao,dados:{...dados,convite:invitation}});
+    const {data,error}=await db.rpc("natal",{acao,dados:{...dados,convite:invitation,evento:eventId}});
     if(error)throw error;
-    S=data.event?data:blank();me=S.me;paint();
-    message(data.event?(acao==="ler"?"":"Alteração salva."):"Abra o link de convite enviado pelo organizador.");
+    if(acao==="criar"){openEvent(data.id);return true;}
+    S=data.event?data:{...blank(),grupos:data.grupos||[]};me=S.me;paint();
+    message(data.event?(acao==="ler"?"":"Alteração salva."):"Preencha os dados para criar um evento ou abra o convite de quem organizou.");
     return true;
   }catch(e){message(e.message);toast(e.message);return false;}finally{busy=false;}
 }
@@ -87,7 +109,7 @@ function go(id){
 $$("nav button").forEach(b=>b.onclick=async()=>{go(b.dataset.t);await action("ler");});
 $("#e-save").onclick=async()=>{
   if(!$("#e-data").value||!$("#e-nome").value.trim()||!$("#e-qtd").value)return toast("Informe nome, data e vagas.");
-  if(await action("evento",{nome:$("#e-nome").value,data:$("#e-data").value,vagas:$("#e-qtd").value,valor:$("#e-orc").value,obs:$("#e-obs").value}))toast("Evento salvo. Copie o convite na aba Evento.");
+  if(await action(eventId||invitation?"evento":"criar",{novo:draftId,nome:$("#e-nome").value,data:$("#e-data").value,vagas:$("#e-qtd").value,valor:$("#e-orc").value,obs:$("#e-obs").value}))toast("Evento salvo. Copie o convite na aba Evento.");
 };
 $("#p-add").onclick=()=>action("entrar",{nome:$("#p-nome").value});
 $("#s-go").onclick=()=>action("sortear");
