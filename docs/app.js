@@ -34,7 +34,7 @@ function renderDraw(){
   else st.innerHTML='<span class="big">Tudo pronto para sortear '+n+' pessoas.</span>';
   $("#s-go").hidden=!!S.pairs;$("#s-go").disabled=!(S.event.name&&S.event.count&&n===S.event.count);$("#s-redo").hidden=!S.pairs;
 }
-function wishHTML(w,del){const link=w.link?` <a href="${esc(w.link)}" target="_blank" rel="noopener noreferrer">ver link</a>`:"";return `<li class="wish"><span class="grow">${esc(w.text)}${link}</span>${del?`<button class="x" data-wd="${w.id}" aria-label="Remover ${esc(w.text)}">×</button>`:""}</li>`;}
+function wishHTML(w,del){const link=w.link?` <a href="${esc(w.link)}" target="_blank" rel="noopener noreferrer">ver link</a>`:"";return `<li class="wish"><span class="grow">${esc(w.text)}${link}</span>${del?`<button type="button" class="x" data-wd="${w.id}" aria-label="Remover ${esc(w.text)}">×</button>`:""}</li>`;}
 function renderMe(){
   const p=byId(me);$("#m-hello").textContent="Olá, "+p.name;
   const d=$("#m-draw");
@@ -49,7 +49,9 @@ function renderMe(){
   }
   $("#w-list").innerHTML=p.wishes.length?p.wishes.map(w=>wishHTML(w,true)).join(""):'<li class="empty" style="display:block">Sua lista está vazia. Adicione o que você gostaria de ganhar.</li>';
   $$("[data-wd]").forEach(b=>b.onclick=()=>{action("excluir",{id:b.dataset.wd});});
-  $("#n-date").checked=!!p.notifyDate;$("#n-list").checked=!!p.notifyList;
+  if(!avisoEditado){
+    $("#n-date").checked=!!p.notifyDate;$("#n-list").checked=!!p.notifyList;
+  }
 }
 const blank=()=>({event:{name:"",date:"",budget:"",note:""},people:[],pairs:false});
 let S=blank(), me=null, db, account=null, busy=false;
@@ -61,6 +63,24 @@ const invitation=new URLSearchParams(location.search).get("convite");
 const message=t=>$("#message").textContent=t;
 let editing=false;
 let directoryLoaded=false;
+let avisoEditado=false;
+for(const input of [$("#n-date"),$("#n-list")])input.onchange=()=>{avisoEditado=true;};
+let browsingEvents=false;
+let previousTab="pessoas";
+$("#back-group").onclick=()=>{
+  browsingEvents=false;paint();go(previousTab);
+  if(previousTab==="evento"&&S.admin)showEditor(true);
+};
+$("#join-invite").onsubmit=e=>{
+  e.preventDefault();
+  const field=$("#invite-url");
+  try{
+    const url=new URL(field.value.trim());
+    if(url.origin!==location.origin||url.pathname.replace(/\/(index\.html)?$/,"")!==location.pathname.replace(/\/(index\.html)?$/,"")||!url.searchParams.get("convite"))throw Error();
+    const dest=new URL(groupUrl(null));
+    dest.searchParams.set("convite",url.searchParams.get("convite"));location.assign(dest.href);
+  }catch{toast("Cole o link de convite completo deste site.");field.focus();}
+};
 let editorChanged=false;
 $("#editor").oninput=()=>{editorChanged=true;};
 function groupUrl(id){
@@ -85,6 +105,7 @@ async function loadDirectory(){
   directoryLoaded=true;
   $("#no-groups").hidden=groups.childElementCount>0;
   $("#managed").hidden=owned.childElementCount===0;
+  $("#join-invite").hidden=!!S.id||groups.childElementCount>0;
 }
 function showEditor(editExisting){
   editing=true;
@@ -99,7 +120,7 @@ function showEditor(editExisting){
   $("#e-save").textContent=editExisting?"Salvar alterações":"Criar evento";
   $("#e-nome").focus();
 }
-$("#novo").onclick=()=>showEditor(false);
+$("#novo").onclick=()=>{if(S.id){const url=new URL(groupUrl(null));url.searchParams.set("criar","1");location.assign(url.href);}else showEditor(false);};
 $("#copy-invite").onclick=async()=>{
   const input=$("#invite");
   if(!S.admin||!input.value)return;
@@ -119,7 +140,8 @@ $("#cancel-editor").onclick=()=>{
 function paint(){
   renderHero();renderPeople();renderDraw();
   $("main").hidden=!account;$("nav").hidden=!account;
-  $("#directory").hidden=editing||!!S.id;
+  $("#directory").hidden=editing||(!!S.id&&!browsingEvents);
+  $("#back-group").hidden=!browsingEvents;
   $("#no-groups").hidden=!directoryLoaded||$("#groups").childElementCount>0;
   $("#editor").hidden=!editing;
   for(const tab of $$("nav button"))tab.hidden=tab.dataset.t!=="evento"&&!S.id;
@@ -154,7 +176,12 @@ $$("nav button").forEach(b=>b.onclick=async()=>{
   const tab=b.dataset.t;
   if(busy)return;
   if(editing&&editorChanged&&!confirm("Sair sem salvar as alterações do evento?"))return;
-  if(tab==="evento"&&(eventId||invitation)){location.assign(groupUrl(null));return;}
+  if(tab==="evento"&&S.id){
+    if(!browsingEvents)previousTab=$("nav [aria-selected=true]").dataset.t;
+    browsingEvents=true;editing=false;paint();go("evento");
+    try{await loadDirectory();}catch(e){message(e.message);}return;
+  }
+  browsingEvents=false;
   editing=false;paint();go(tab);if(S.id)await action("ler");
 });
 $("#editor").onsubmit=async event=>{
@@ -199,18 +226,19 @@ $("#wish-form").onsubmit=async event=>{
     }
     itens.push({id:row.dataset.id,nome,link});
   }
-  if(!itens.length)return toast("Informe pelo menos um presente.");
+
   $("#wish-fields").disabled=true;
   busy=true;
   try{
-    const {error}=await db.rpc("salvar_presentes",{evento:S.id,itens});
+    const {error}=await db.rpc("atualizar_lista",{evento:S.id,itens,avisar_data:$("#n-date").checked,avisar_lista:$("#n-list").checked});
     if(error)throw error;
+    avisoEditado=false;
     $("#wish-rows").replaceChildren();addWishRow();
   }catch(e){message(e.message);toast("Falha ao salvar. Seus presentes continuam no formulário.");return;}
   finally{busy=false;$("#wish-fields").disabled=false;}
-  if(await action("ler"))toast(itens.length===1?"Presente salvo!":"Presentes salvos!");
+  if(await action("ler"))toast("Lista e preferências atualizadas!");
 };
-$("#n-save").onclick=()=>action("avisos",{data:$("#n-date").checked,lista:$("#n-list").checked});
+
 async function authTask(fn){
   try{const {error}=await fn();if(error)throw error;}catch(e){message(e.message);}
 }
@@ -245,6 +273,7 @@ async function start(){
         else {$("#directory").hidden=true;const back=document.createElement("a");back.href=groupUrl(null);back.textContent="Voltar aos meus eventos";$("#message").append(" ",back);}
       }else{
         await loadDirectory();
+        if(params.get("criar")==="1")showEditor(false);
       }
     }
     db.auth.onAuthStateChange((event,session)=>{

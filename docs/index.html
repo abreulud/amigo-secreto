@@ -114,6 +114,21 @@ section h2{font-size:1.5rem}
 #logout{margin-left:12px}#message:empty{display:none}#managed{margin-top:22px}
 .list a{color:var(--ink);font-weight:600;overflow-wrap:anywhere}
 .invite-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.invite-row input{flex:1 1 180px}.invite-row .btn{margin:0;width:auto}
+#back-group{margin:0 0 14px}
+@media(max-width:600px){
+ .hero{padding:16px 14px 42px}.hero h1{font-size:clamp(1.75rem,7vw,2.4rem);overflow-wrap:anywhere}
+ .hero p{font-size:.94rem;margin-top:6px}
+ #account{margin-top:12px;padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+ #session{flex:1 1 140px;min-width:0;overflow-wrap:anywhere}
+ #logout{margin:0;width:auto;min-height:44px;padding:8px 12px}
+ #auth{display:grid;width:100%;gap:6px}#auth label{margin:6px 0 0}
+ #message{width:100%;overflow-wrap:anywhere}
+ nav{margin-top:-22px;gap:2px}nav button{min-height:44px;min-width:0}
+ section{padding:16px 14px}.list{margin-top:12px}.list a{display:flex;align-items:center;min-height:44px}
+ .snowflakes{display:none}
+ input,select,textarea{font-size:16px}
+ .checks input{width:20px;height:20px;min-height:0;flex:none}
+}
 </style>
 </head>
 <body>
@@ -136,8 +151,14 @@ section h2{font-size:1.5rem}
 <main hidden>
   <section id="evento" class="on">
     <div id="directory">
+      <button class="btn alt" id="back-group" hidden>Voltar ao evento</button>
       <h2>Eventos em que participo</h2>
       <p id="no-groups">Você ainda não entrou em nenhum grupo. Abra um convite para participar.</p>
+      <form id="join-invite" hidden>
+        <label for="invite-url">Link de convite que você recebeu</label>
+        <input id="invite-url" type="url" required placeholder="Cole o link aqui">
+        <button class="btn alt">Abrir convite</button>
+      </form>
       <ul class="list" id="groups"></ul>
       <div id="managed" hidden><h3>Eventos que organizo sem participar</h3><ul class="list" id="owned"></ul></div>
       <button class="btn" id="novo">Criar evento</button>
@@ -189,9 +210,7 @@ section h2{font-size:1.5rem}
         <fieldset id="wish-fields" style="border:0;margin:0;padding:0">
           <div id="wish-rows"></div>
           <button class="btn alt" type="button" id="wish-more">Adicionar outra linha</button>
-          <button class="btn" type="submit">Salvar presentes</button>
-        </fieldset>
-      </form>
+
       <ul class="list" id="w-list"></ul>
       <hr>
       <h3>Avisos por e-mail</h3>
@@ -200,7 +219,9 @@ section h2{font-size:1.5rem}
         <label><input type="checkbox" id="n-list"> Avisar quando quem eu tirei atualizar a lista</label>
       </div>
       <p class="hint">Os avisos usam o endereço da sua conta.</p>
-      <button class="btn alt" id="n-save">Salvar avisos</button>
+      <button class="btn" type="submit">Atualizar lista</button>
+        </fieldset>
+      </form>
     </div>
   </section>
 </main>
