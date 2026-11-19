@@ -59,36 +59,63 @@ const eventId=params.get("evento");
 const draftId=crypto.randomUUID();
 const invitation=new URLSearchParams(location.search).get("convite");
 const message=t=>$("#message").textContent=t;
-const picker=document.createElement("div");
-picker.innerHTML='<label for="grupos">Meus eventos</label><select id="grupos"></select><button id="novo" class="btn alt">Criar outro evento</button>';
-$("#account").append(picker);
-function openEvent(id){
-  const url=new URL(location.href);url.search="";url.hash="";
+let editing=false;
+let directoryLoaded=false;
+function groupUrl(id, personal=false){
+  const url=new URL(location.href);
+  url.search="";url.hash="";
   if(id)url.searchParams.set("evento",id);
-  location.assign(url.href);
+  if(personal)url.searchParams.set("area","eu");
+  return url.href;
 }
-$("#grupos").onchange=e=>openEvent(e.target.value);
-$("#novo").onclick=()=>openEvent(null);
+async function loadDirectory(){
+  const {data,error}=await db.rpc("meus_eventos");
+  if(error)throw error;
+  const groups=$("#groups"),owned=$("#owned");
+  groups.replaceChildren();owned.replaceChildren();
+  for(const group of data){
+    const link=document.createElement("a");
+    link.textContent=group.nome||"Evento sem nome";
+    link.href=groupUrl(group.id,group.participa);
+    const item=document.createElement("li");item.append(link);
+    (group.participa?groups:owned).append(item);
+  }
+  directoryLoaded=true;
+  $("#no-groups").hidden=groups.childElementCount>0;
+  $("#managed").hidden=owned.childElementCount===0;
+}
+function showEditor(editExisting){
+  editing=true;
+  fillEvent();
+  go("evento");
+  $("#directory").hidden=true;$("#editor").hidden=false;
+  $("#editor-title").textContent=editExisting?"Editar evento":"Criar evento";
+  $("#e-save").textContent=editExisting?"Salvar alterações":"Criar evento";
+  $("#e-nome").focus();
+}
+$("#novo").onclick=()=>showEditor(false);
+$("#edit-event").onclick=()=>showEditor(true);
+$("#cancel-editor").onclick=()=>{
+  editing=false;$("#editor").hidden=true;
+  if(S.id)go("pessoas");else $("#directory").hidden=false;
+};
 function paint(){
-  fillEvent();renderHero();renderPeople();renderDraw();
+  renderHero();renderPeople();renderDraw();
+  $("main").hidden=!account;$("nav").hidden=!account;
+  $("#directory").hidden=editing||!!S.id;
+  $("#no-groups").hidden=!directoryLoaded||$("#groups").childElementCount>0;
+  $("#editor").hidden=!editing;
+  for(const tab of $$("nav button"))tab.hidden=tab.dataset.t!=="evento"&&!S.id;
   $("#login").hidden=!!me;$("#area").hidden=!me;
   if(me)renderMe();else {$("#m-draw").replaceChildren();$("#w-list").replaceChildren();}
   $("#auth").hidden=!!account;$("#logout").hidden=!account;
-  $("#session").textContent=account?account.email:"Acesso por e-mail";
+  $("#session").textContent=account?account.email:"Entrar com e-mail";
   $("#m-out").hidden=true;
-  const creating=!!account&&!invitation&&!eventId;
-  picker.hidden=!account;
-  const select=$("#grupos");
-  select.replaceChildren(new Option(creating?"Novo evento":"Escolha um evento",""));
-  for(const group of S.grupos||[]) select.add(new Option(group.nome||"Evento sem nome",group.id));
-  if(S.id)select.value=S.id;
-  $("#novo").hidden=creating;
-  $("#e-save").textContent=creating?"Criar evento":"Salvar evento";
-  for(const el of $$("#evento input:not(#invite),#e-save"))el.disabled=!(creating||S.admin);
-  $("#inviteBox").hidden=!S.admin||!S.event.count;
-  if(S.admin){const url=new URL(location.href);url.search="";url.hash="";url.searchParams.set("convite",S.convite);$("#invite").value=url.href;}
+  $("#registration").hidden=!!me;
+  $("#manager").hidden=!S.admin;
+  if(S.admin){const url=new URL(groupUrl(null));url.searchParams.set("convite",S.convite);$("#invite").value=url.href;}
   $("#p-add").disabled ||= !!me||!account;
-  $("#s-go").disabled ||= !S.admin;$("#s-redo").hidden ||= !S.admin;
+  $("#s-go").hidden ||= !S.admin;$("#s-redo").hidden ||= !S.admin;
 }
 async function action(acao,dados={}){
   if(!account||busy)return false;
@@ -96,9 +123,9 @@ async function action(acao,dados={}){
   try{
     const {data,error}=await db.rpc("natal",{acao,dados:{...dados,convite:invitation,evento:eventId}});
     if(error)throw error;
-    if(acao==="criar"){openEvent(data.id);return true;}
+    if(acao==="criar"){location.assign(groupUrl(data.id));return true;}
     S=data.event?data:{...blank(),grupos:data.grupos||[]};me=S.me;paint();
-    message(data.event?(acao==="ler"?"":"Alteração salva."):"Preencha os dados para criar um evento ou abra o convite de quem organizou.");
+    message(acao==="ler"?"":"Alteração salva.");
     return true;
   }catch(e){message(e.message);toast(e.message);return false;}finally{busy=false;}
 }
@@ -106,10 +133,14 @@ function go(id){
   $$("nav button").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.t===id)));
   $$("main section").forEach(s=>s.classList.toggle("on",s.id===id));
 }
-$$("nav button").forEach(b=>b.onclick=async()=>{go(b.dataset.t);await action("ler");});
+$$("nav button").forEach(b=>b.onclick=async()=>{
+  const tab=b.dataset.t;
+  if(tab==="evento"&&(eventId||invitation)){location.assign(groupUrl(null));return;}
+  editing=false;paint();go(tab);if(S.id)await action("ler");
+});
 $("#e-save").onclick=async()=>{
   if(!$("#e-data").value||!$("#e-nome").value.trim()||!$("#e-qtd").value)return toast("Informe nome, data e vagas.");
-  if(await action(eventId||invitation?"evento":"criar",{novo:draftId,nome:$("#e-nome").value,data:$("#e-data").value,vagas:$("#e-qtd").value,valor:$("#e-orc").value,obs:$("#e-obs").value}))toast("Evento salvo. Copie o convite na aba Evento.");
+  if(await action(S.id?"evento":"criar",{novo:draftId,nome:$("#e-nome").value,data:$("#e-data").value,vagas:$("#e-qtd").value,valor:$("#e-orc").value,obs:$("#e-obs").value})){editing=false;paint();if(S.id)go("pessoas");}
 };
 $("#p-add").onclick=()=>action("entrar",{nome:$("#p-nome").value});
 $("#s-go").onclick=()=>action("sortear");
@@ -144,7 +175,15 @@ async function start(){
     if(!window.NATAL_URL||!window.NATAL_KEY)throw Error("Preencha docs/config.js com a URL e a chave pública do Supabase.");
     db=supabase.createClient(window.NATAL_URL,window.NATAL_KEY);
     const {data,error}=await db.auth.getSession();if(error)throw error;
-    account=data.session?.user;paint();if(account)await action("ler");
+    account=data.session?.user;paint();
+    if(account){
+      if(eventId||invitation){
+        if(await action("ler"))go(me&&params.get("area")==="eu"?"eu":"pessoas");
+        else {$("#directory").hidden=true;const back=document.createElement("a");back.href=groupUrl(null);back.textContent="Voltar aos meus eventos";$("#message").append(" ",back);}
+      }else{
+        await loadDirectory();
+      }
+    }
     db.auth.onAuthStateChange((event,session)=>{
       if((session?.user?.id||null)!==(account?.id||null))location.reload();
     });

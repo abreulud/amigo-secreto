@@ -108,6 +108,11 @@ section h2{font-size:1.5rem}
 .back{font-size:1.6rem}
 }
 @media(prefers-reduced-motion:reduce){*{animation-duration:.01s!important;transition-duration:.01s!important}.snowflakes{display:none}}
+#account{margin:20px 0 0;padding:16px;color:var(--ink);background:var(--card)}
+#auth{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
+#auth label{flex-basis:100%}#auth input{flex:1;min-width:12ch}#auth .btn,#logout{margin:0}
+#logout{margin-left:12px}#message:empty{display:none}#managed{margin-top:22px}
+.list a{color:var(--ink);font-weight:600;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
@@ -117,18 +122,26 @@ section h2{font-size:1.5rem}
     <p id="intro">Cadastrem o evento, sorteiem e deixem a lista de presentes sempre atualizada.</p>
     <div class="count" id="count" hidden><b id="days">0</b><span id="dayslbl">dias para a troca de presentes</span></div>
   </div>
+<div class="wrap account-wrap"><div class="status" id="account"><strong id="session">Acesso por e-mail</strong><div id="auth"><label for="email">Seu e-mail</label><input id="email" type="email" autocomplete="email"><button class="btn" id="send">Enviar código</button><label for="code">Código recebido</label><input id="code" inputmode="numeric" autocomplete="one-time-code"><button class="btn alt" id="verify">Confirmar código</button></div><button class="btn alt" id="logout" hidden>Sair da conta</button><p role="status" id="message"></p></div></div>
 </header>
 
-<nav role="tablist" aria-label="Etapas">
-  <button role="tab" data-t="evento" aria-selected="true">Evento</button>
+<nav hidden role="tablist" aria-label="Etapas">
+  <button role="tab" data-t="evento" aria-selected="true">Eventos</button>
   <button role="tab" data-t="pessoas" aria-selected="false"><span class="lg">Participantes</span><span class="sm">Pessoas</span></button>
   <button role="tab" data-t="sorteio" aria-selected="false">Sorteio</button>
   <button role="tab" data-t="eu" aria-selected="false">Minha área</button>
 </nav>
 
-<main><div class="status" id="account"><strong id="session">Acesso por e-mail</strong><div id="auth"><label for="email">Seu e-mail</label><input id="email" type="email" autocomplete="email"><button class="btn" id="send">Enviar código</button><label for="code">Código recebido</label><input id="code" inputmode="numeric" autocomplete="one-time-code"><button class="btn alt" id="verify">Confirmar código</button></div><button class="btn alt" id="logout" hidden>Sair da conta</button><p role="status" id="message"></p></div>
+<main hidden>
   <section id="evento" class="on">
-    <h2>Dados do evento</h2>
+    <div id="directory">
+      <h2>Eventos em que participo</h2>
+      <p id="no-groups">Você ainda não entrou em nenhum grupo. Abra um convite para participar.</p>
+      <ul class="list" id="groups"></ul>
+      <div id="managed" hidden><h3>Eventos que organizo sem participar</h3><ul class="list" id="owned"></ul></div>
+      <button class="btn" id="novo">Criar evento</button>
+    </div>
+    <div id="editor" hidden><h2 id="editor-title">Criar evento</h2>
     <p class="sub">Defina nome, data e o valor combinado para os presentes.</p>
     <label for="e-nome">Nome do evento</label>
     <input id="e-nome" placeholder="Natal da turma 2026" maxlength="60">
@@ -141,12 +154,16 @@ section h2{font-size:1.5rem}
     <p class="hint">O sorteio só libera quando todos estiverem cadastrados.</p>
     <label for="e-obs">Local ou observações (opcional)</label>
     <input id="e-obs" placeholder="Casa da Ana, a partir das 19h" maxlength="100">
-    <p id="inviteBox" hidden><label for="invite">Link de convite para compartilhar</label><input id="invite" readonly></p><button class="btn" id="e-save">Salvar evento</button>
+    <button class="btn" id="e-save">Criar evento</button>
+    <button class="btn alt" id="cancel-editor">Cancelar</button></div>
   </section>
 
   <section id="pessoas">
     <h2>Participantes</h2>
-    <p class="sub">Abra o convite e cadastre seu próprio nome.</p><label for="p-nome">Seu nome no grupo</label><input id="p-nome" maxlength="30"><button class="btn" id="p-add">Entrar no grupo</button>
+    <div id="manager" hidden><label for="invite">Link para convidar o grupo</label><input id="invite" readonly>
+    <button id="edit-event" class="btn alt">Editar evento</button></div>
+    <div id="registration">
+    <p class="sub">Abra o convite e cadastre seu próprio nome.</p><label for="p-nome">Seu nome no grupo</label><input id="p-nome" maxlength="30"><button class="btn" id="p-add">Entrar no grupo</button></div>
     <div class="prog"><div class="bar" id="p-bar"></div></div>
     <p class="hint" id="p-prog"></p>
     <ul class="list" id="p-list"></ul>
@@ -161,7 +178,7 @@ section h2{font-size:1.5rem}
   </section>
 
   <section id="eu">
-    <p id="login">Entre na sua conta e cadastre seu nome na aba Participantes.</p><div id="area" hidden>
+    <p id="login">Cadastre seu nome em Participantes para montar sua lista e participar do sorteio.</p><div id="area" hidden>
       <div class="who"><h3 id="m-hello"></h3><button class="btn alt" id="m-out" style="margin:0">Sair</button></div>
       <div id="m-draw"></div>
       <hr>

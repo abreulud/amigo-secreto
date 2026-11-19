@@ -1,9 +1,9 @@
 # Amigo Secreto de Natal
 
-Entre com seu e-mail para organizar uma troca de presentes de 3 a 50 pessoas ou participar de um grupo por convite.
+Organize uma troca de presentes de 3 a 50 pessoas ou participe pelo convite do grupo. Entre pelo cabeçalho do site com o código recebido por e-mail.
 
-**Para organizar**, abra o site, confirme o código recebido por e-mail e preencha a aba **Evento**. Ao clicar em **Criar evento**, você se torna responsável por ele. Copie o link e envie ao grupo. Quando as vagas estiverem preenchidas, abra **Sorteio** e clique em **Sortear agora**. Para participar também, cadastre seu nome na aba **Participantes**.
+**Para participar**, abra o convite e cadastre seu nome em **Participantes**. Na aba **Eventos**, clique no nome de um grupo para abrir **Minha área**, montar sua lista de presentes e descobrir quem você tirou depois do sorteio.
 
-**Para participar**, abra o convite, confirme seu e-mail e registre seu nome em **Participantes**. Em **Minha área**, monte sua lista de presentes. Depois do sorteio, toque na etiqueta para descobrir quem você tirou e ver as sugestões dessa pessoa.
+**Para organizar**, abra **Eventos → Criar evento**, preencha os dados e confirme. Em **Participantes**, copie o link de convite e compartilhe com o grupo. Quando as vagas estiverem preenchidas, abra **Sorteio → Sortear agora**.
 
-Use **Meus eventos** para alternar entre seus grupos. Cada evento tem sua própria lista de participantes e seu próprio sorteio.
+Se quiser participar de um evento que você organizou, cadastre seu nome nele também. Até lá, você pode administrá-lo pela seção **Eventos que organizo sem participar**.
